@@ -10,11 +10,11 @@ import os
 import pickle
 import numpy as np
 from time import time
-from fpylll import FPLLL, BKZ, GSO, IntegerMatrix
+from fpylll import FPLLL, BKZ, GSO, IntegerMatrix, LLL
 from fpylll.algorithms.bkz2 import BKZReduction as BKZ2
 import sys
 sys.path.append("./")
-from src.generate.lllbkz import encode_intmat, decode_intmat, calc_std_usvp, usvp_params
+from src.generate.lllbkz import encode_intmat, decode_intmat, calc_std_usvp, usvp_params, polish
 from subprocess import Popen, PIPE
 import io
 from src.generate.genSamples import MAX_TIME_BKZ, FLOAT_UPGRADE
@@ -46,11 +46,17 @@ class BenchmarkUSVP(object):
             f"w = {self.weight}, delta = {self.delta}, d = {self.m+self.N+1}"
         )
         self.set_float_type(params.float_type)
-        secrets = np.load(os.path.join(params.secret_path, "secret.npy"))
-        cols = np.where(np.sum(secrets != 0, axis=0) == self.hamming)[0]
-        assert len(cols) > self.expNum
-        self.s = (secrets[:, cols[self.expNum]]).reshape((self.N, 1))
-        assert sum(self.s != 0) == self.hamming
+        #replace this with old code that allowed secret gen based on hamming weight, placement
+        #secrets = np.load(os.path.join(params.secret_path, "secret.npy"))
+        #cols = np.where(np.sum(secrets != 0, axis=0) == self.hamming)[0]
+        #assert len(cols) > self.expNum
+        #self.s = (secrets[:, cols[self.expNum]]).reshape((self.N, 1))
+
+        self.s = np.zeros(self.N)
+        #self.s[-10:] = 1
+        self.s[:10] = 1
+
+        #assert sum(self.s != 0) == self.hamming
 
         self.results_path = os.path.join(params.dump_path, "results.pkl")
         self.matrix_filename = os.path.join(params.dump_path, f"matrix_{thread}.npy")
@@ -282,7 +288,51 @@ class BenchmarkUSVPFlatter(BenchmarkUSVP):
         return True
 
 
-# ### Benchmark uSVP on BKZ without interleaving
+# ### Benchmark uSVP on LLL without interleaving
+class BenchmarkUSVPLLL(BenchmarkUSVP):
+    def __init__(self, params, thread, logger):
+        super().__init__(params, thread, logger)
+
+    def generate(self):
+        secret, Ap = self.get_secret_Ap() # get kannans
+        orig_std = self.calc_Ap_stdev(Ap)
+
+        fplll_Ap = IntegerMatrix.from_matrix(Ap.tolist())
+        M = GSO.Mat(fplll_Ap, float_type=self.float_type, update=True)
+        #BKZ_Obj = BKZ2(M)
+        #bkz_params = BKZ.EasyParam(
+            #self.block_size, delta=self.delta, max_time=MAX_TIME_BKZ
+        #)
+        start_time = None
+        while True: #start_time is None: # or time() - start_time > MAX_TIME_BKZ:
+            start_time = time()
+            self.logger.info(f"Worker {self.thread} starting new LLL run.")
+            try:
+                #BKZ_Obj(bkz_params)
+                L = LLL.Reduction(M)
+                L()
+            except:
+                self.set_float_type(FLOAT_UPGRADE[self.float_type])
+                self.logger.info(
+                    f"Error running LLL. Upgrading to float type {self.float_type}."
+                )
+                M = GSO.Mat(fplll_Ap, float_type=self.float_type, update=True)
+                #BKZ_Obj = BKZ2(M)
+                #BKZ_Obj(bkz_params)
+                L = LLL.Reduction(M)
+                L()
+
+            RAp = np.zeros((self.m + self.N + 1, self.m + self.N + 1), dtype=np.int64)
+            fplll_Ap.to_matrix(RAp)
+            RAp = polish(RAp, longtype=True) # polishes via Mark's algo.
+            self.check_for_upgrade(
+                RAp, orig_std
+            )  # putting this first so that it logs stddev reduction
+            if self.check_usvp_success(RAp, secret):
+                print('in here')
+                return False
+
+
 class BenchmarkUSVPBKZ(BenchmarkUSVP):
     def __init__(self, params, thread, logger):
         super().__init__(params, thread, logger)

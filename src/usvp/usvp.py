@@ -21,7 +21,8 @@ from src.utils import initialize_exp, create_this_logger
 from usvp_benchmark import (
     BenchmarkUSVPInterleave,
     BenchmarkUSVPFlatter,
-    BenchmarkUSVPBKZ,
+    BenchmarkUSVPLLL,
+    BenchmarkUSVPBKZ
 )
 from joblib import Parallel, delayed, cpu_count
 
@@ -37,7 +38,7 @@ def get_parser():
 
     # main parameters
     parser.add_argument(
-        "--dump_path", type=str, default="", help="Experiment dump path"
+        "--dump_path", type=str, default="./", help="Experiment dump path"
     )
     parser.add_argument(
         "--resume_path", type=str, default="", help="Path to load the checkpoints"
@@ -83,7 +84,7 @@ def get_parser():
     parser.add_argument(
         "--hamming", type=int, default=-1, help="hamming weight of secret"
     )
-    parser.add_argument("--secret_type", type=str, required=True, help="what secret distribution? Should match that in secret_path.")
+    parser.add_argument("--secret_type", default="binary", type=str, required=True, help="what secret distribution? Should match that in secret_path.")
 
     # Reduction parameters
     parser.add_argument(
@@ -177,6 +178,7 @@ def get_data_one_worker(i, params):
             dict([(key, []) for key in keys]),
             open(os.path.join(params.dump_path, "results.pkl"), "wb"),
         )
+    #assert params.algo == 'LLL' and params.algo2 == 'LLL', "Dummy arg so we are sure we run LLL"
     if params.algo != params.algo2:
         sampleGen = BenchmarkUSVPInterleave(params, i, logger)
     else:
@@ -184,6 +186,8 @@ def get_data_one_worker(i, params):
             sampleGen = BenchmarkUSVPFlatter(params, i, logger)
         elif params.algo == "BKZ2.0":
             sampleGen = BenchmarkUSVPBKZ(params, i, logger)
+        elif params.algo == "LLL":
+            sampleGen = BenchmarkUSVPLLL(params, i, logger)
 
     gen_more = True
     while gen_more:
