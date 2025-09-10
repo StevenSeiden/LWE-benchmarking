@@ -33,6 +33,7 @@ class BenchmarkUSVP(object):
         # Now set everything up
         self.params = params
         self.N, self.Q, self.m = params.N, params.Q, params.m
+        self.secret_position = params.secret_position
         self.sigma = params.sigma
         self.thread = thread
         self.longtype = np.log2(params.Q) > 30
@@ -53,8 +54,12 @@ class BenchmarkUSVP(object):
         #self.s = (secrets[:, cols[self.expNum]]).reshape((self.N, 1))
 
         self.s = np.zeros(self.N)
-        #self.s[-10:] = 1
-        self.s[:10] = 1
+
+        if self.secret_position == "front":
+            self.s[:10] = 1
+        else:
+            self.s[-10:] = 1
+
 
         #assert sum(self.s != 0) == self.hamming
 
@@ -143,6 +148,7 @@ class BenchmarkUSVP(object):
             self.logger.info(
                 f"Upgrading to delta = {self.delta}, block size = {self.block_size}, alpha = {self.alpha}"
             )
+        return newstddev
 
     def check_usvp_success(self, RAp, secret):
         """Check if uSVP succeeded, save and return True (ending loop) if it did"""
@@ -154,6 +160,7 @@ class BenchmarkUSVP(object):
         self.logger.info(f"Saved progress at {self.matrix_filename}")
         success = np.all(secret.flatten().astype(bool) == guessed_secret.astype(bool))
         if success:
+            print("Found secret!")
             self.logger.info(f"Found secret for {self.matrix_filename}")
             results = pickle.load(open(self.results_path, "rb"))
             if type(results) != dict:
@@ -325,9 +332,11 @@ class BenchmarkUSVPLLL(BenchmarkUSVP):
             RAp = np.zeros((self.m + self.N + 1, self.m + self.N + 1), dtype=np.int64)
             fplll_Ap.to_matrix(RAp)
             RAp = polish(RAp, longtype=True) # polishes via Mark's algo.
-            self.check_for_upgrade(
+            stddev = self.check_for_upgrade(
                 RAp, orig_std
             )  # putting this first so that it logs stddev reduction
+
+            print("STDDEV: ", stddev)
             if self.check_usvp_success(RAp, secret):
                 print('in here')
                 return False
@@ -364,7 +373,7 @@ class BenchmarkUSVPBKZ(BenchmarkUSVP):
 
             RAp = np.zeros((self.m + self.N + 1, self.m + self.N + 1), dtype=np.int64)
             fplll_Ap.to_matrix(RAp)
-            self.check_for_upgrade(
+            stddev = self.check_for_upgrade(
                 RAp, orig_std
             )  # putting this first so that it logs stddev reduction
             if self.check_usvp_success(RAp, secret):

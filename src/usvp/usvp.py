@@ -6,6 +6,8 @@ This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 """
 
+#python3 src/usvp/usvp.py --secret_type "binary" --N 50 --Q 3329 --algo LLL --algo2 LLL --hamming 6 --num_workers 1
+
 import os
 import argparse
 import pickle
@@ -85,6 +87,8 @@ def get_parser():
         "--hamming", type=int, default=-1, help="hamming weight of secret"
     )
     parser.add_argument("--secret_type", default="binary", type=str, required=True, help="what secret distribution? Should match that in secret_path.")
+    parser.add_argument("--secret_position", default="front", type=str, required=False, help="what is the secret position?")
+
 
     # Reduction parameters
     parser.add_argument(
@@ -179,6 +183,7 @@ def get_data_one_worker(i, params):
             open(os.path.join(params.dump_path, "results.pkl"), "wb"),
         )
     #assert params.algo == 'LLL' and params.algo2 == 'LLL', "Dummy arg so we are sure we run LLL"
+    stddev = -1
     if params.algo != params.algo2:
         sampleGen = BenchmarkUSVPInterleave(params, i, logger)
     else:
@@ -192,6 +197,8 @@ def get_data_one_worker(i, params):
     gen_more = True
     while gen_more:
         gen_more = sampleGen.generate()
+
+    return sampleGen
 
 
 def main(params):
@@ -211,9 +218,11 @@ def main(params):
     n_cpu = cpu_count()
     n_jobs = min(n_cpu, params.num_workers)
     logger.info(f" Nb CPU: {n_cpu} and Nb worker: {params.num_workers}")
-    Parallel(n_jobs=n_jobs)(
+    stddev = Parallel(n_jobs=n_jobs)(
         delayed(get_data_one_worker)(n, params) for n in range(n_jobs)
     )
+
+    return stddev
 
 
 if __name__ == "__main__":
@@ -229,6 +238,7 @@ if __name__ == "__main__":
     ]
     params.sigma = 3  # dummy
     params.secret_type = params.secret_type
+    params.secret_position = params.secret_position
 
     # run experiment
     main(params)
