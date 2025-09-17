@@ -3,7 +3,7 @@ import time
 import csv
 import graph
 
-secret_position = "front"
+secret_specs = "front"
 hamming = "10"
 q = "3329"
 algo = "LLL"
@@ -27,7 +27,7 @@ for n in range(40, 110, 10):
         "--algo2", algo,
         "--hamming", str(hamming),
         "--num_workers", "1",
-        "--secret_position", secret_position
+        "--secret_specs", secret_specs
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True).stdout
@@ -57,5 +57,5 @@ print(n_val)
 print(stddevs)
 
 #change depending on dependent variable type
-graph.make_graph(secret_position, hamming, "Hamming Weight", q, algo)
-#graph.make_graph(secret_position, n, "N", q, algo)
+graph.make_graph(secret_specs, hamming, "Hamming Weight", q, algo)
+#graph.make_graph(secret_specs, n, "N", q, algo)

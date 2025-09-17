@@ -18,6 +18,8 @@ from src.generate.lllbkz import encode_intmat, decode_intmat, calc_std_usvp, usv
 from subprocess import Popen, PIPE
 import io
 from src.generate.genSamples import MAX_TIME_BKZ, FLOAT_UPGRADE
+import random
+
 
 
 ### Runs USVP benchmark: define generic class and then subclasses based on setup.
@@ -33,7 +35,7 @@ class BenchmarkUSVP(object):
         # Now set everything up
         self.params = params
         self.N, self.Q, self.m = params.N, params.Q, params.m
-        self.secret_position = params.secret_position
+        self.secret_specs = params.secret_specs
         self.sigma = params.sigma
         self.thread = thread
         self.longtype = np.log2(params.Q) > 30
@@ -55,11 +57,38 @@ class BenchmarkUSVP(object):
 
         self.s = np.zeros(self.N)
 
-        if self.secret_position == "front":
+
+        secret_info = self.secret_specs.split()
+
+        self.stddev_history = [0] * 50
+
+        print("Generating secret: "+ str(secret_info))
+
+        if secret_info[0] == "random_fill":
+            hamming_weight = self.hamming
+            index = int(secret_info[2])
+
+            secret_segment = np.zeros(index - 1)
+            secret_segment[:hamming_weight-1] = 1
+            np.random.shuffle(secret_segment)
+
+            if secret_info[1] == "front":
+                for i, val in np.ndenumerate(secret_segment):
+                    self.s[i] = val #fill from the front towards the back randomly
+                self.s[index - 1] = 1 #ensure last item in index is a 1
+
+            if secret_info[1] == "back":
+                for i, val in np.ndenumerate(secret_segment):
+                    self.s[self.N - (i[0]+1)] = val #fill from the back towards the front randomly
+                self.s[self.N - index] = 1 #ensure last item in index is a 1
+
+        elif self.secret_specs == "front":
             self.s[:10] = 1
         else:
             self.s[-10:] = 1
 
+        np.set_printoptions(linewidth=500, threshold=np.inf)
+        print("Secret made: " + str(self.s))
 
         #assert sum(self.s != 0) == self.hamming
 
@@ -136,6 +165,13 @@ class BenchmarkUSVP(object):
         # Run checks.
         newstddev = calc_std_usvp(Ap, orig_std, self.Q, self.m, self.N)
         self.logger.info(f"Stddev reduction = {newstddev}")
+
+        self.stddev_history.pop(0)
+        self.stddev_history.append(newstddev)
+        if len(set(self.stddev_history)) == 1:
+            print("Secret was: " + str(self.s))
+            exit("No reduction improvement the past fifty runs. Terminating.")
+
         # Upgrades for flatter/BKZ
         if not self.upgraded and newstddev < self.params.threshold2:
             # Go into Phase 2

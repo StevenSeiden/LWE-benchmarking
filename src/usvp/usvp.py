@@ -87,7 +87,7 @@ def get_parser():
         "--hamming", type=int, default=-1, help="hamming weight of secret"
     )
     parser.add_argument("--secret_type", default="binary", type=str, required=True, help="what secret distribution? Should match that in secret_path.")
-    parser.add_argument("--secret_position", default="front", type=str, required=False, help="what is the secret position?")
+    parser.add_argument("--secret_specs", default="front", type=str, required=False, help="what is the secret position?")
 
 
     # Reduction parameters
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     ]
     params.sigma = 3  # dummy
     params.secret_type = params.secret_type
-    params.secret_position = params.secret_position
+    params.secret_specs = params.secret_specs
 
     # run experiment
     main(params)

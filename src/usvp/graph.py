@@ -10,9 +10,9 @@ def make_graph(secret_position, other_var, other_var_name, q, algo):
     with open('experiment.csv', newline='') as f:
         reader = csv.reader(f)
         for row in reader:
-            y.append(row[0])
-            stddevs.append(row[1])
-            runtimes.append(row[2])
+            y.append(row[1])
+            stddevs.append(row[2])
+            runtimes.append(row[3])
 
     print(y)
     print(stddevs)
