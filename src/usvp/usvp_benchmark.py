@@ -60,7 +60,7 @@ class BenchmarkUSVP(object):
 
         secret_info = self.secret_specs.split()
 
-        self.stddev_history = [0] * 50
+        self.stddev_history = [0] * 10
 
         print("Generating secret: "+ str(secret_info))
 
@@ -170,7 +170,7 @@ class BenchmarkUSVP(object):
         self.stddev_history.append(newstddev)
         if len(set(self.stddev_history)) == 1:
             print("Secret was: " + str(self.s))
-            exit("No reduction improvement the past fifty runs. Terminating.")
+            exit("No reduction improvement the past ten runs. Terminating.")
 
         # Upgrades for flatter/BKZ
         if not self.upgraded and newstddev < self.params.threshold2:

@@ -2,12 +2,12 @@ import subprocess
 import time
 import csv
 
-def experiment(filename,secret_position,n,step,hamming):
+def experiment(filename,secret_position,n,step,hamming,q):
     #secret_position = "back"
     secret_fill = "random_fill"
     secret_spread = 15
     #hamming = "10"
-    q = "3329"
+    #q = "3329"
     algo = "LLL"
     #n = 64
 
@@ -27,7 +27,7 @@ def experiment(filename,secret_position,n,step,hamming):
                 "python3", "src/usvp/usvp.py",
                 "--secret_type", "binary",
                 "--N", str(n),
-                "--Q", q,
+                "--Q", str(q),
                 "--algo", algo,
                 "--algo2", algo,
                 "--hamming", str(hamming),
@@ -70,7 +70,7 @@ def experiment(filename,secret_position,n,step,hamming):
                     csv_writer = csv.writer(csvfile)
                     csv_writer.writerow([current_secret, secret_spread])
                 print("Experiment failed. Retrying...")
-                #i = i + 1
+                i = i + 1
                 continue
 
             runtime = time.perf_counter()  - start_time
@@ -94,5 +94,7 @@ def experiment(filename,secret_position,n,step,hamming):
 if __name__ == "__main__":
     # experiment("experiment random_fill back 64.csv", "back", 64, -4)
     # experiment("experiment random_fill front 64.csv", "front", 64, -4)
-    #experiment("experiment random_fill front 64 15.csv", "front", 64, -6,15)
-    experiment("experiment random_fill back 64 15.csv", "back", 64, -6,15)
+    # experiment("experiment random_fill front 64 15.csv", "front", 64, -6,15)
+    # experiment("experiment random_fill back 64 15.csv", "back", 64, -6,15)
+
+    experiment("experiment random_fill back 64 15.csv", "back", 256, -6, 10, 974269)
